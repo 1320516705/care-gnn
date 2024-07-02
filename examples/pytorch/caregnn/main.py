@@ -11,55 +11,69 @@ from utils import EarlyStopping
 
 
 def main(args):
-    # Step 1: Prepare graph data and retrieve train/validation/test index ============================= #
-    # Load dataset
-    dataset = dgl.data.FraudDataset(args.dataset, train_size=0.4)
-    graph = dataset[0]
-    num_classes = dataset.num_classes
+    # Step 1: 准备数据集; 得到train、val、test的索引; 以及train中正样本的索引; ============================= #
+    # 下载数据集
+    # dataset = dgl.data.FraudDataset(args.dataset, train_size=0.4)
+    # graph = dataset[0]
+    # num_classes = dataset.num_classes
+    if (args.dataset != "S-FFSD"):
+        dataset = dgl.data.FraudDataset(args.dataset, train_size=0.4)
+        graph = dataset[0]
+        num_classes = dataset.num_classes
+        # print("num_classes",num_classes)
+    if args.dataset == "S-FFSD":
+        from my_add import load_gtan_data
+        graph = load_gtan_data(args.dataset, train_size=0.4)
+        num_classes = 2
 
-    # check cuda
+    # 检查cuda是否可用
     if args.gpu >= 0 and th.cuda.is_available():
         device = "cuda:{}".format(args.gpu)
     else:
         device = "cpu"
 
-    # retrieve labels of ground truth
+    # 得到标签
     labels = graph.ndata["label"].to(device)
 
-    # Extract node features
+    # 得到节点特征
     feat = graph.ndata["feature"].to(device)
 
-    # retrieve masks for train/validation/test
+    # 分布得到train/val/test 索引
     train_mask = graph.ndata["train_mask"]
     val_mask = graph.ndata["val_mask"]
     test_mask = graph.ndata["test_mask"]
 
-    train_idx = th.nonzero(train_mask, as_tuple=False).squeeze(1).to(device)
+    train_idx = th.nonzero(train_mask, as_tuple=False).squeeze(1).to(device) # 选出train_mask中不为0的索引，并压缩成一维张量
     val_idx = th.nonzero(val_mask, as_tuple=False).squeeze(1).to(device)
     test_idx = th.nonzero(test_mask, as_tuple=False).squeeze(1).to(device)
 
-    # Reinforcement learning module only for positive training nodes
+    # 得到训练集中正样本的索引
     rl_idx = th.nonzero(
         train_mask.to(device) & labels.bool(), as_tuple=False
     ).squeeze(1)
 
     graph = graph.to(device)
 
-    # Step 2: Create model =================================================================== #
+    # Step 2: 创建模型 =================================================================== #
     model = CAREGNN(
-        in_dim=feat.shape[-1],
+        in_dim=feat.shape[-1],# 输入特征的维度
         num_classes=num_classes,
         hid_dim=args.hid_dim,
         num_layers=args.num_layers,
         activation=th.tanh,
         step_size=args.step_size,
-        edges=graph.canonical_etypes,
+        edges=graph.canonical_etypes,# 将图中的边全变成3元组格式(源节点，边，目标节点)
     )
 
     model = model.to(device)
 
-    # Step 3: Create training components ===================================================== #
-    _, cnt = th.unique(labels, return_counts=True)
+    # Step 3: 创建训练所需要的（损失函数，优化器，早停） ===================================================== #
+    mask = labels != 2
+    filtered_labels = labels[mask]
+
+    # 计算去掉标签为2后的唯一标签和每个标签的数量
+    _, cnt = th.unique(filtered_labels, return_counts=True)
+    # _, cnt = th.unique(labels, return_counts=True) # 标签中的不重复的元素，并返回每个标签对应的个数（对于二分类问题，个数就是2，也就是0和1）cnt={Tensor:(2,)}
     loss_fn = th.nn.CrossEntropyLoss(weight=1 / cnt)
     optimizer = optim.Adam(
         model.parameters(), lr=args.lr, weight_decay=args.weight_decay
@@ -156,7 +170,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "--dataset",
         type=str,
-        default="amazon",
+        # default="yelp",
+        default="S-FFSD",
         help="DGL dataset for this model (yelp, or amazon)",
     )
     parser.add_argument(
@@ -171,7 +186,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "--max_epoch",
         type=int,
-        default=30,
+        # default=200,
+        default=10,
         help="The max number of epochs. Default: 30",
     )
     parser.add_argument(
