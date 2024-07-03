@@ -88,28 +88,53 @@ def main(args):
         logits_gnn, logits_sim = model(graph, feat)
 
         # compute loss
+        # tr_loss = loss_fn(
+        #     logits_gnn[train_idx], labels[train_idx]
+        # ) + args.sim_weight * loss_fn(logits_sim[train_idx], labels[train_idx])
+        #
+        # tr_recall = recall_score(
+        #     labels[train_idx].cpu(),
+        #     logits_gnn.data[train_idx].argmax(dim=1).cpu(),
+        # )
+        # tr_auc = roc_auc_score(
+        #     labels[train_idx].cpu(),
+        #     softmax(logits_gnn, dim=1).data[train_idx][:, 1].cpu(),
+        # )
+        #
+        # # validation
+        # val_loss = loss_fn(
+        #     logits_gnn[val_idx], labels[val_idx]
+        # ) + args.sim_weight * loss_fn(logits_sim[val_idx], labels[val_idx])
+        # val_recall = recall_score(
+        #     labels[val_idx].cpu(), logits_gnn.data[val_idx].argmax(dim=1).cpu()
+        # )
+        # val_auc = roc_auc_score(
+        #     labels[val_idx].cpu(),
+        #     softmax(logits_gnn, dim=1).data[val_idx][:, 1].cpu(),
+        # )
+
         tr_loss = loss_fn(
-            logits_gnn[train_idx], labels[train_idx]
-        ) + args.sim_weight * loss_fn(logits_sim[train_idx], labels[train_idx])
+            logits_gnn[train_idx], filtered_labels[train_idx]
+        ) + args.sim_weight * loss_fn(logits_sim[train_idx], filtered_labels[train_idx])
 
         tr_recall = recall_score(
-            labels[train_idx].cpu(),
+            filtered_labels[train_idx].cpu(),
             logits_gnn.data[train_idx].argmax(dim=1).cpu(),
         )
         tr_auc = roc_auc_score(
-            labels[train_idx].cpu(),
+            filtered_labels[train_idx].cpu(),
             softmax(logits_gnn, dim=1).data[train_idx][:, 1].cpu(),
         )
 
         # validation
         val_loss = loss_fn(
-            logits_gnn[val_idx], labels[val_idx]
-        ) + args.sim_weight * loss_fn(logits_sim[val_idx], labels[val_idx])
+            logits_gnn[val_idx], filtered_labels[val_idx]
+        ) + args.sim_weight * loss_fn(logits_sim[val_idx], filtered_labels[val_idx])
         val_recall = recall_score(
-            labels[val_idx].cpu(), logits_gnn.data[val_idx].argmax(dim=1).cpu()
+            filtered_labels[val_idx].cpu(), logits_gnn.data[val_idx].argmax(dim=1).cpu()
         )
         val_auc = roc_auc_score(
-            labels[val_idx].cpu(),
+            filtered_labels[val_idx].cpu(),
             softmax(logits_gnn, dim=1).data[val_idx][:, 1].cpu(),
         )
 
@@ -147,14 +172,24 @@ def main(args):
     logits_gnn, logits_sim = model.forward(graph, feat)
 
     # compute loss
+    # test_loss = loss_fn(
+    #     logits_gnn[test_idx], labels[test_idx]
+    # ) + args.sim_weight * loss_fn(logits_sim[test_idx], labels[test_idx])
+    # test_recall = recall_score(
+    #     labels[test_idx].cpu(), logits_gnn[test_idx].argmax(dim=1).cpu()
+    # )
+    # test_auc = roc_auc_score(
+    #     labels[test_idx].cpu(),
+    #     softmax(logits_gnn, dim=1).data[test_idx][:, 1].cpu(),
+    # )
     test_loss = loss_fn(
-        logits_gnn[test_idx], labels[test_idx]
-    ) + args.sim_weight * loss_fn(logits_sim[test_idx], labels[test_idx])
+        logits_gnn[test_idx], filtered_labels[test_idx]
+    ) + args.sim_weight * loss_fn(logits_sim[test_idx], filtered_labels[test_idx])
     test_recall = recall_score(
-        labels[test_idx].cpu(), logits_gnn[test_idx].argmax(dim=1).cpu()
+        filtered_labels[test_idx].cpu(), logits_gnn[test_idx].argmax(dim=1).cpu()
     )
     test_auc = roc_auc_score(
-        labels[test_idx].cpu(),
+        filtered_labels[test_idx].cpu(),
         softmax(logits_gnn, dim=1).data[test_idx][:, 1].cpu(),
     )
 
@@ -187,7 +222,7 @@ if __name__ == "__main__":
         "--max_epoch",
         type=int,
         # default=200,
-        default=10,
+        default=2,
         help="The max number of epochs. Default: 30",
     )
     parser.add_argument(

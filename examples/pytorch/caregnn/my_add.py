@@ -25,7 +25,7 @@ def load_gtan_data(dataset: str, train_size: float):
         data.to_csv(os.path.join(prefix, 'S-FFSDneofull.csv'), index=None)
         df = pd.read_csv(prefix + "S-FFSDneofull.csv")
         df = df.loc[:, ~df.columns.str.contains('Unnamed')]
-        data = df[df["Labels"] <= 2]
+        data = df[df["Labels"] < 2]
         data = data.reset_index(drop=True)
 
         # 2、构建graph
